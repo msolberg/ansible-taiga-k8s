@@ -1,0 +1,7 @@
+---
+- name: Create the Taiga Project
+  k8s:
+    name: taiga
+    api_version: project.openshift.io/v1
+    kind: Project
+    state: present
