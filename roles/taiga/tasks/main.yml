@@ -1,7 +1,116 @@
 ---
 - name: Create the Taiga Project
   k8s:
-    name: taiga
+    name: "{{ project_name }}"
     api_version: project.openshift.io/v1
     kind: Project
     state: present
+
+- name: Create the taiga-back ImageStream
+  k8s:
+    state: present
+    definition:
+      kind: ImageStream
+      apiVersion: image.openshift.io/v1
+      metadata:
+        name: taiga-back
+        namespace: "{{ project_name }}"
+
+- name: Create the taiga-back BuildConfig
+  k8s:
+    state: present
+    definition: "{{ lookup('template', 'taiga-back-bc.yml') }}"
+
+- name: Create the taiga-front ImageStream
+  k8s:
+    state: present
+    definition:
+      kind: ImageStream
+      apiVersion: image.openshift.io/v1
+      metadata:
+        name: taiga-front
+        namespace: "{{ project_name }}"
+  
+- name: Create the taiga-front BuildConfig
+  k8s:
+    state: present
+    definition: "{{ lookup('template', 'taiga-front-bc.yml') }}"
+
+- name: Create the taiga-media PersistentVolumeClaim
+  k8s:
+    state: present
+    definition:
+      kind: PersistentVolumeClaim
+      apiVersion: v1
+      metadata:
+        name: taiga-media
+        namespace: "{{ project_name }}"
+      spec:
+        accessModes:
+          - ReadWriteMany
+        resources:
+          requests:
+            storage: 2Gi
+
+- name: Create the taiga-back Secret
+  k8s:
+    state: present
+    definition:
+      kind: Secret
+      apiVersion: v1
+      metadata:
+        name: taiga-back
+        namespace: "{{ project_name }}"
+        labels:
+          app: taiga-back
+      data:
+        DB_HOST: "{{ db_host | string | b64encode }}"
+        DB_PASSWORD: "{{ db_password | string | b64encode }}"
+        DB_USERNAME: "{{ db_username | string | b64encode }}"
+        django-secret-key: "{{ django_secret_key }}"
+
+- name: Create the taiga-front Service
+  k8s:
+    state: present
+    definition:
+      kind: Service
+      apiVersion: v1
+      metadata:
+        name: taiga-front
+        namespace: "{{ project_name }}"
+      spec:
+        ports:
+          - name: web
+            protocol: TCP
+            port: 8080
+            targetPort: 8080
+        selector:
+          name: taiga-front
+
+- name: Create the taiga-back Service
+  k8s:
+    state: present
+    definition:
+      kind: Service
+      apiVersion: v1
+      metadata:
+        name: taiga-back
+        namespace: "{{ project_name }}"
+      spec:
+        ports:
+          - name: web
+            protocol: TCP
+            port: 8080
+            targetPort: 8080
+        selector:
+          name: taiga-back
+
+- name: Create the taiga-front DeploymentConfig
+  k8s:
+    state: present
+    definition: "{{ lookup('template', 'taiga-front-dc.yml') }}"
+
+- name: Create the taiga-back DeploymentConfig
+  k8s:
+    state: present
+    definition: "{{ lookup('template', 'taiga-back-dc.yml') }}"

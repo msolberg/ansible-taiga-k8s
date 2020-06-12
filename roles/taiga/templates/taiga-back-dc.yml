@@ -1,0 +1,121 @@
+kind: DeploymentConfig
+apiVersion: apps.openshift.io/v1
+metadata:
+  name: taiga-back
+  namespace: {{ project_name }}
+  labels:
+    app: taiga-back
+    app.kubernetes.io/part-of: Taiga
+    template: taiga-back
+  annotations:
+    description: Taiga Backend Deployment Configuration
+spec:
+  strategy:
+    type: Recreate
+    recreateParams:
+      timeoutSeconds: 600
+    resources: {}
+    activeDeadlineSeconds: 21600
+  triggers:
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+          - taiga-back
+        from:
+          kind: ImageStreamTag
+          namespace: taiga
+          name: 'taiga-back:latest'
+        lastTriggeredImage:
+    - type: ConfigChange
+  replicas: 1
+  revisionHistoryLimit: 10
+  test: false
+  selector:
+    name: taiga-back
+  template:
+    metadata:
+      name: taiga-back
+      creationTimestamp: null
+      labels:
+        name: taiga-back
+    spec:
+      volumes:
+        - name: taiga-media
+          persistentVolumeClaim:
+            claimName: taiga-media
+      containers:
+        - resources:
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /api/v1/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 3
+            timeoutSeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          terminationMessagePath: /dev/termination-log
+          name: taiga-back
+          livenessProbe:
+            httpGet:
+              path: /api/v1/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 30
+            timeoutSeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          env:
+            - name: DJANGO_SETTINGS_MODULE
+              value: openshift
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: taiga-back
+                  key: DB_HOST
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: taiga-back
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: taiga-back
+                  key: DB_PASSWORD
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taiga-back
+                  key: django-secret-key
+            - name: PUBLIC_REGISTER_ENABLED
+              value: 'True'
+            - name: USER_EMAIL_ALLOWED_DOMAIN
+              value: redhat.com
+            - name: TAIGA_HOSTNAME
+              value: taiga.phx.salab.redhat.com
+            - name: EMAIL_HOST
+              value: smtp.corp.redhat.com
+            - name: DEFAULT_FROM_EMAIL
+              value: taiga@phx.salab.redhat.com
+            - name: DEBUG
+              value: 'True'
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: taiga-media
+              mountPath: /opt/app-root/src/media
+          terminationMessagePolicy: File
+          image: taiga/taiga-back:latest
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+      schedulerName: default-scheduler

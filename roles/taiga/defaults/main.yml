@@ -1,0 +1,7 @@
+---
+project_name: taiga
+db_host: 127.0.0.1
+db_username: taiga
+db_password: taiga
+django_secret_key: Tm42MUZ4X3ZCVldGMFJRSVFFQ1hIT1c2RE9OSzVyVTRtbEFCYWF2Q3hoWFZvZkdORmU=
+

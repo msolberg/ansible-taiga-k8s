@@ -1,0 +1,82 @@
+kind: DeploymentConfig
+apiVersion: apps.openshift.io/v1
+metadata:
+  name: taiga-front
+  namespace: {{ project_name }}
+  annotations:
+    app.openshift.io/connects-to: taiga-back
+    description: Taiga Frontend Deployment Configuration
+    template.alpha.openshift.io/wait-for-ready: 'true'
+  labels:
+    app.kubernetes.io/part-of: Taiga
+spec:
+  strategy:
+    type: Rolling
+    rollingParams:
+      updatePeriodSeconds: 1
+      intervalSeconds: 1
+      timeoutSeconds: 600
+      maxUnavailable: 25%
+      maxSurge: 25%
+    resources: {}
+    activeDeadlineSeconds: 21600
+  triggers:
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+        - taiga-front
+        from:
+          kind: ImageStreamTag
+          namespace: {{ project_name }}
+          name: 'taiga-front:latest'
+        lastTriggeredImage:
+    - type: ConfigChange
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    name: taiga-front
+  template:
+    metadata:
+      name: taiga-front
+      creationTimestamp: null
+      labels:
+        name: taiga-front
+    spec:
+      containers:
+        - resources:
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 3
+            timeoutSeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          terminationMessagePath: /dev/termination-log
+          name: taiga-front
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 30
+            timeoutSeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          imagePullPolicy: IfNotPresent
+          terminationMessagePolicy: File
+          image: {{ project_name }}/taiga-front
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+      schedulerName: default-scheduler
